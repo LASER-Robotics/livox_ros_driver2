@@ -33,10 +33,13 @@ livox_ros2_params = [
 
 
 def generate_launch_description():
+    uav_name = os.environ['UAV_NAME']
+
     livox_driver = Node(
         package='livox_ros_driver2',
         executable='livox_ros_driver2_node',
         name='livox_lidar_publisher',
+        namespace=uav_name
         output='screen',
         parameters=livox_ros2_params
         )

@@ -35,10 +35,21 @@ livox_ros2_params = [
 def generate_launch_description():
     uav_name = os.environ['UAV_NAME']
 
+    # Declare arguments
+    declared_arguments = []
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'livox_name',
+            default_value='livox',
+            description='Livox name.'))
+
+    livox_name = LaunchConfiguration('livox_name')
+
     livox_driver = Node(
         package='livox_ros_driver2',
         executable='livox_ros_driver2_node',
-        name='livox_lidar_publisher',
+        name=livox_name,
         namespace=uav_name,
         output='screen',
         parameters=livox_ros2_params
@@ -54,4 +65,4 @@ def generate_launch_description():
         #         ]
         #     )
         # )
-    ])
+    ] + declared_arguments)

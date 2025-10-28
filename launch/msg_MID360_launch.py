@@ -39,7 +39,7 @@ def generate_launch_description():
         package='livox_ros_driver2',
         executable='livox_ros_driver2_node',
         name='livox_lidar_publisher',
-        namespace=uav_name
+        namespace=uav_name,
         output='screen',
         parameters=livox_ros2_params
         )

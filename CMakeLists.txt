@@ -39,6 +39,9 @@
   find_package(std_msgs REQUIRED)
   find_package(builtin_interfaces REQUIRED)
   find_package(rosidl_default_generators REQUIRED)
+  find_package(tf2 REQUIRED)
+  find_package(tf2_ros REQUIRED)
+  find_package(tf2_msgs REQUIRED)
 
   # check apr
   find_package(PkgConfig)
@@ -90,6 +93,8 @@
     src/call_back/lidar_common_callback.cpp
     src/call_back/livox_lidar_callback.cpp
   )
+
+  ament_target_dependencies(${PROJECT_NAME} tf2 tf2_ros tf2_msgs)
 
   target_include_directories(${PROJECT_NAME} PRIVATE ${livox_sdk_INCLUDE_DIRS})
 

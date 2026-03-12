@@ -51,14 +51,14 @@ int main(int argc, char **argv) {
   DRIVER_INFO(livox_node, "Livox Ros Driver2 Version: %s", LIVOX_ROS_DRIVER2_VERSION_STRING);
 
   /** Init default system parameter */
-  int xfer_format = kPointCloud2Msg;
-  int multi_topic = 0;
-  int data_src = kSourceRawLidar;
-  double publish_freq  = 10.0; /* Hz */
-  int output_type      = kOutputToRos;
-  std::string frame_id = "livox_frame";
-  bool lidar_bag = true;
-  bool imu_bag   = false;
+  int         xfer_format  = kPointCloud2Msg;
+  int         multi_topic  = 0;
+  int         data_src     = kSourceRawLidar;
+  double      publish_freq = 10.0; /* Hz */
+  int         output_type  = kOutputToRos;
+  std::string frame_id     = "livox_frame";
+  bool        lidar_bag    = true;
+  bool        imu_bag      = false;
 
   livox_node.GetNode().getParam("xfer_format", xfer_format);
   livox_node.GetNode().getParam("multi_topic", multi_topic);
@@ -82,8 +82,7 @@ int main(int argc, char **argv) {
   livox_node.future_ = livox_node.exit_signal_.get_future();
 
   /** Lidar data distribute control and lidar data source set */
-  livox_node.lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type,
-                        publish_freq, frame_id, lidar_bag, imu_bag);
+  livox_node.lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type, publish_freq, frame_id, lidar_bag, imu_bag);
   livox_node.lddc_ptr_->SetRosNode(&livox_node);
 
   if (data_src == kSourceRawLidar) {
@@ -106,8 +105,10 @@ int main(int argc, char **argv) {
   }
 
   livox_node.pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, &livox_node);
-  livox_node.imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, &livox_node);
-  while (ros::ok()) { usleep(10000); }
+  livox_node.imudata_poll_thread_        = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, &livox_node);
+  while (ros::ok()) {
+    usleep(10000);
+  }
 
   return 0;
 }
@@ -115,18 +116,17 @@ int main(int argc, char **argv) {
 #elif defined BUILDING_ROS2
 namespace livox_ros
 {
-DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
-: Node("livox_driver_node", node_options)
-{
+DriverNode::DriverNode(const rclcpp::NodeOptions &node_options) : Node("livox_driver_node", node_options) {
   DRIVER_INFO(*this, "Livox Ros Driver2 Version: %s", LIVOX_ROS_DRIVER2_VERSION_STRING);
 
   /** Init default system parameter */
-  int xfer_format = kPointCloud2Msg;
-  int multi_topic = 0;
-  int data_src = kSourceRawLidar;
-  double publish_freq = 10.0; /* Hz */
-  int output_type = kOutputToRos;
+  int         xfer_format  = kPointCloud2Msg;
+  int         multi_topic  = 0;
+  int         data_src     = kSourceRawLidar;
+  double      publish_freq = 10.0; /* Hz */
+  int         output_type  = kOutputToRos;
   std::string frame_id;
+  std::string namespace_ = this->get_namespace();
 
   this->declare_parameter("xfer_format", xfer_format);
   this->declare_parameter("multi_topic", 0);
@@ -156,7 +156,7 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   future_ = exit_signal_.get_future();
 
   /** Lidar data distribute control and lidar data source set */
-  lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type, publish_freq, frame_id);
+  lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type, publish_freq, frame_id, namespace_);
   lddc_ptr_->SetRosNode(this);
 
   if (data_src == kSourceRawLidar) {
@@ -182,7 +182,50 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   }
 
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
-  imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
+  imudata_poll_thread_        = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
+
+  tf2::Quaternion          quat;
+  rclcpp::Time             stamp = get_clock()->now();
+  // Sensor to lidar
+  geometry_msgs::msg::TransformStamped sensor_to_lidar_static_transform;
+  sensor_to_lidar_static_transform.header.stamp            = stamp;
+  sensor_to_lidar_static_transform.header.frame_id         = namespace_ + "/" + frame_id + "/link";
+  sensor_to_lidar_static_transform.child_frame_id          = namespace_ + "/" + frame_id + "/lidar";
+  sensor_to_lidar_static_transform.transform.translation.x = 0.0;
+  sensor_to_lidar_static_transform.transform.translation.y = 0.0;
+  sensor_to_lidar_static_transform.transform.translation.z = 0.5;
+
+  quat.setRPY(0.0, 0.0, 0.0);
+  sensor_to_lidar_static_transform.transform.rotation.x = quat.x();
+  sensor_to_lidar_static_transform.transform.rotation.y = quat.y();
+  sensor_to_lidar_static_transform.transform.rotation.z = quat.z();
+  sensor_to_lidar_static_transform.transform.rotation.w = quat.w();
+
+  tf_message_.transforms.push_back(sensor_to_lidar_static_transform);
+
+  // Sensor to IMU
+  geometry_msgs::msg::TransformStamped sensor_to_imu_static_transform;
+  sensor_to_imu_static_transform.header.stamp            = stamp;
+  sensor_to_imu_static_transform.header.frame_id         = namespace_ + "/" + frame_id + "/link";
+  sensor_to_imu_static_transform.child_frame_id          = namespace_ + "/" + frame_id + "/imu";
+  sensor_to_imu_static_transform.transform.translation.x = 0.0;
+  sensor_to_imu_static_transform.transform.translation.y = 0.0;
+  sensor_to_imu_static_transform.transform.translation.z = 0.0;
+
+  quat.setRPY(0.0, 0.0, 0.0);
+  sensor_to_imu_static_transform.transform.rotation.x = quat.x();
+  sensor_to_imu_static_transform.transform.rotation.y = quat.y();
+  sensor_to_imu_static_transform.transform.rotation.z = quat.z();
+  sensor_to_imu_static_transform.transform.rotation.w = quat.w();
+
+  tf_message_.transforms.push_back(sensor_to_imu_static_transform);
+
+  publisher_tf_ = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf_static", rclcpp::QoS(1).transient_local());
+  timer_tf_     = this->create_wall_timer(std::chrono::seconds(1), std::bind(&DriverNode::publishStaticTransforms, this));
+}
+
+void DriverNode::publishStaticTransforms() {
+  publisher_tf_->publish(tf_message_);
 }
 
 }  // namespace livox_ros
@@ -192,9 +235,7 @@ RCLCPP_COMPONENTS_REGISTER_NODE(livox_ros::DriverNode)
 
 #endif  // defined BUILDING_ROS2
 
-
-void DriverNode::PointCloudDataPollThread()
-{
+void DriverNode::PointCloudDataPollThread() {
   std::future_status status;
   std::this_thread::sleep_for(std::chrono::seconds(3));
   do {
@@ -203,8 +244,7 @@ void DriverNode::PointCloudDataPollThread()
   } while (status == std::future_status::timeout);
 }
 
-void DriverNode::ImuDataPollThread()
-{
+void DriverNode::ImuDataPollThread() {
   std::future_status status;
   std::this_thread::sleep_for(std::chrono::seconds(3));
   do {
@@ -212,24 +252,4 @@ void DriverNode::ImuDataPollThread()
     status = future_.wait_for(std::chrono::microseconds(0));
   } while (status == std::future_status::timeout);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

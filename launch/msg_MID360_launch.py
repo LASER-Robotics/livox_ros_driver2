@@ -6,8 +6,6 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PythonExpression
 import launch
 
-uav_name = os.environ['UAV_NAME']
-
 ################### user configure parameters for ros2 start ###################
 xfer_format   = 0    # 0-Pointcloud2(PointXYZRTL), 1-customized pointcloud format
 multi_topic   = 0    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
@@ -32,6 +30,13 @@ def generate_launch_description():
             default_value='livox',
             description='Livox name.'))
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'uav_name',
+            default_value=os.getenv('UAV_NAME', "uav1"),
+            description='Top-level namespace.'))
+
+    uav_name = LaunchConfiguration('uav_name')
     livox_name = LaunchConfiguration('livox_name')
 
     livox_ros2_params = [
@@ -53,16 +58,6 @@ def generate_launch_description():
         namespace=uav_name,
         output='screen',
         parameters=livox_ros2_params
-        )
+    )
 
-    return LaunchDescription([
-        livox_driver,
-        # launch.actions.RegisterEventHandler(
-        #     event_handler=launch.event_handlers.OnProcessExit(
-        #         target_action=livox_rviz,
-        #         on_exit=[
-        #             launch.actions.EmitEvent(event=launch.events.Shutdown()),
-        #         ]
-        #     )
-        # )
-    ] + declared_arguments)
+    return LaunchDescription(declared_arguments + [livox_driver])

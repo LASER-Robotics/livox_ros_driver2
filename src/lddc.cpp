@@ -50,6 +50,7 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
       publish_frq_(frq),
       frame_id_(frame_id),
       enable_lidar_bag_(lidar_bag),
+      enable_lidar_bag_(lidar_bag),
       enable_imu_bag_(imu_bag) {
   publish_period_ns_ = kNsPerSecond / publish_frq_;
   lds_ = nullptr;
@@ -62,12 +63,13 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
 }
 #elif defined BUILDING_ROS2
 Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
-           double frq, std::string &frame_id)
+           double frq, std::string &frame_id, std::string _namespace)
     : transfer_format_(format),
       use_multi_topic_(multi_topic),
       data_src_(data_src),
       output_type_(output_type),
       publish_frq_(frq),
+      namespace_(_namespace),
       frame_id_(frame_id) {
   publish_period_ns_ = kNsPerSecond / publish_frq_;
   lds_ = nullptr;
@@ -260,7 +262,7 @@ void Lddc::PublishPclMsg(LidarDataQueue *queue, uint8_t index) {
 }
 
 void Lddc::InitPointcloud2MsgHeader(PointCloud2& cloud) {
-  cloud.header.frame_id.assign(frame_id_);
+  cloud.header.frame_id.assign(namespace_ + "/" + frame_id_ + "/lidar");
   cloud.height = 1;
   cloud.width = 0;
   cloud.fields.resize(7);
@@ -352,7 +354,7 @@ void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp,
 }
 
 void Lddc::InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t index) {
-  livox_msg.header.frame_id.assign(frame_id_);
+  livox_msg.header.frame_id.assign(namespace_ + "/" + frame_id_ + "/lidar");
 
 #ifdef BUILDING_ROS1
   static uint32_t msg_seq = 0;
@@ -478,7 +480,7 @@ void Lddc::PublishPclData(const uint8_t index, const uint64_t timestamp, const P
 }
 
 void Lddc::InitImuMsg(const ImuData& imu_data, ImuMsg& imu_msg, uint64_t& timestamp) {
-  imu_msg.header.frame_id = "livox_frame";
+  imu_msg.header.frame_id = namespace_ + "/" + frame_id_ + "/imu";
 
   timestamp = imu_data.time_stamp;
 #ifdef BUILDING_ROS1
@@ -647,16 +649,17 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentPublisher(uint8_t handle)
       memset(name_str, 0, sizeof(name_str));
 
       std::string ip_string = IpNumToString(lds_->lidars_[handle].handle);
-      snprintf(name_str, sizeof(name_str), "livox/lidar_%s",
+      snprintf(name_str, sizeof(name_str),"/lidar_%s",
           ReplacePeriodByUnderline(ip_string).c_str());
-      std::string topic_name(name_str);
+      auto frame_name_str = namespace_ + "/" + frame_id_ + name_str;
+      std::string topic_name(frame_name_str);
       queue_size = queue_size * 2; // queue size is 64 for only one lidar
       private_pub_[handle] = CreatePublisher(transfer_format_, topic_name, queue_size);
     }
     return private_pub_[handle];
   } else {
     if (!global_pub_) {
-      std::string topic_name("livox/lidar");
+      std::string topic_name(frame_id_ + "/lidar");
       queue_size = queue_size * 8; // shared queue size is 256, for all lidars
       global_pub_ = CreatePublisher(transfer_format_, topic_name, queue_size);
     }
@@ -671,9 +674,10 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentImuPublisher(uint8_t hand
       char name_str[48];
       memset(name_str, 0, sizeof(name_str));
       std::string ip_string = IpNumToString(lds_->lidars_[handle].handle);
-      snprintf(name_str, sizeof(name_str), "livox/imu_%s",
+      snprintf(name_str, sizeof(name_str),"/imu_%s",
           ReplacePeriodByUnderline(ip_string).c_str());
-      std::string topic_name(name_str);
+      auto frame_name_str = namespace_ + "/" + frame_id_ + name_str;
+      std::string topic_name(frame_name_str);
       queue_size = queue_size * 2; // queue size is 64 for only one lidar
       private_imu_pub_[handle] = CreatePublisher(kLivoxImuMsg, topic_name,
           queue_size);
@@ -681,7 +685,7 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentImuPublisher(uint8_t hand
     return private_imu_pub_[handle];
   } else {
     if (!global_imu_pub_) {
-      std::string topic_name("livox/imu");
+      std::string topic_name(frame_id_ + "/imu");
       queue_size = queue_size * 8; // shared queue size is 256, for all lidars
       global_imu_pub_ = CreatePublisher(kLivoxImuMsg, topic_name, queue_size);
     }

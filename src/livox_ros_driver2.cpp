@@ -193,7 +193,7 @@ DriverNode::DriverNode(const rclcpp::NodeOptions &node_options) : Node("livox_dr
   sensor_to_lidar_static_transform.child_frame_id          = namespace_ + "/" + frame_id + "/lidar";
   sensor_to_lidar_static_transform.transform.translation.x = 0.0;
   sensor_to_lidar_static_transform.transform.translation.y = 0.0;
-  sensor_to_lidar_static_transform.transform.translation.z = 0.5;
+  sensor_to_lidar_static_transform.transform.translation.z = 0.05;
 
   quat.setRPY(0.0, 0.0, 0.0);
   sensor_to_lidar_static_transform.transform.rotation.x = quat.x();
